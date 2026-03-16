@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres-payment:
+    image: postgres:15
+    container_name: postgres-payment
+    environment:
+      POSTGRES_DB: payment_service_db
+      POSTGRES_USER: payment_service_user
+      POSTGRES_PASSWORD: payment_service_password
+    ports:
+      - "6436:5432"
+    volumes:
+      - payment_data:/var/lib/postgresql/data
+
+  payment-service:
+    build: .
+    container_name: payment-service
+    depends_on:
+      - postgres-payment
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/payment_service_db
+      SPRING_DATASOURCE_USERNAME: payment_service_user
+      SPRING_DATASOURCE_PASSWORD: payment_service_password
+    ports:
+      - "8083:8080"
+    volumes:
+      - ~/.m2:/home/gradle/.m2:ro
+
+volumes:
+  payment_data:

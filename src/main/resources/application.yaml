@@ -1,3 +1,81 @@
 spring:
+  main:
+    web-application-type: reactive
+
   application:
     name: payment-service
+
+  profiles:
+    active: ${SPRING_PROFILE:dev}
+
+  # Реактивная конфигурация БД
+  r2dbc:
+    url: r2dbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    pool:
+      max-size: ${R2DBC_POOL_MAX_SIZE:10}
+      initial-size: ${R2DBC_POOL_INITIAL_SIZE:5}
+      max-idle-time: ${R2DBC_POOL_MAX_IDLE_TIME:30m}
+      validation-query: ${R2DBC_POOL_VALIDATION_QUERY:SELECT 1}
+
+  # Конфигурация для Liquibase (через JDBC)
+  liquibase:
+    url: ${LIQUIBASE_URL:jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}}
+    user: ${LIQUIBASE_USER:${POSTGRES_USER}}
+    password: ${LIQUIBASE_PASSWORD:${POSTGRES_PASSWORD}}
+    change-log: ${SPRING_LIQUIBASE_CHANGELOG:classpath:db/changelog/main-changelog.yaml}
+    enabled: true
+
+  # Инициализация SQL для реактивного подключения
+  sql:
+    init:
+      mode: ${SPRING_SQL_INIT_MODE:always}
+      platform: ${SPRING_SQL_INIT_PLATFORM:postgresql}
+
+server:
+  port: ${MAIN_SERVICE_PORT:8081}
+
+debug: true
+
+springdoc:
+  api-docs:
+    enabled: ${SPRING_DOC_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRING_DOC_SWAGGER_UI_ENABLED:true}
+    doc-expansion: ${SPRING_DOC_SWAGGER_UI_DOC_EXPANSION:none}
+
+logging:
+  enabled: ${LOGGING_ENABLED:true}
+  metric-enabled: ${LOGGING_METRIC_ENABLED:true}
+  request-logging-enabled: ${LOGGING_REQUEST_LOGGING:true}
+  level:
+    com.logging: ${LOGGING_LEVEL_COM_LOGGING:DEBUG}
+    org.springframework.web: ${LOGGING_LEVEL_SPRING_WEB:INFO}
+    org.springframework.data.r2dbc: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_DATA_R2DBC:DEBUG}
+    io.r2dbc.postgresql.QUERY: ${LOGGING_LEVEL_IO_R2DBC_POSTGRESQL_QUERY:DEBUG}
+    org.apache.kafka: ${LOGGING_LEVEL_ORG_APACHE_KAFKA:OFF}
+    org.springframework.kafka: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA:OFF}
+    reactor.kafka: ${LOGGING_LEVEL_REACTOR_KAFKA:OFF}
+
+# Kafka Configuration
+app:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9391,localhost:9392,localhost:9393}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:account-processing-group}
+      max-poll-records: ${KAFKA_CONSUMER_MAX_POLL_RECORDS:10}
+      session-timeout: ${KAFKA_CONSUMER_SESSION_TIMEOUT:10000}
+      heartbeat-interval: ${KAFKA_CONSUMER_HEARTBEAT_INTERVAL:3000}
+      max-poll-interval-ms: ${KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS:300000}
+    producer:
+      enable: ${KAFKA_PRODUCER_ENABLE:true}
+    listener:
+      poll-timeout: ${KAFKA_LISTENER_POLL_TIMEOUT:1000}
+    topics:
+      order-processing-payment: ${KAFKA_TOPIC_ORDER_PROCESSING_PAYMENT:order-processing-payment}
+      order-compensated: ${KAFKA_TOPIC_ORDER_COMPENSATED:order-compensated}
+      payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED:payment-succeeded}
+      payment-failed: ${KAFKA_TOPIC_PAYMENT_FAILED:payment-failed}
+  outbox:
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
