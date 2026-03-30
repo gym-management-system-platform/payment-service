@@ -1,13 +1,10 @@
-package com.payment.service;
+package com.payment.service.impl;
 
 
 import com.payment.entity.OutboxEvent;
 import com.payment.enums.OutboxEventType;
-import com.payment.event.PaymentFailedEvent;
-import com.payment.event.PaymentSucceededEvent;
-import com.payment.property.KafkaProperties;
+import com.payment.config.property.KafkaProperties;
 import com.payment.repository.OutboxRepository;
-import com.payment.serialize.EventSerializer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -24,8 +21,7 @@ import java.time.Instant;
 public class PaymentOutboxProcessor {
 
     private final OutboxRepository outboxRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final EventSerializer serializer;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final KafkaProperties kafkaProperties;
 
     @Scheduled(fixedDelayString = "${app.outbox.poll-interval-ms}")
@@ -37,7 +33,13 @@ public class PaymentOutboxProcessor {
 
     private Mono<Void> publishEvent(OutboxEvent event) {
         try {
-            Object payload = deserialize(event);
+            if (event.getPayload() == null) {
+                return markFailed(event, new IllegalStateException("Outbox payload is null"));
+            }
+            String payload = event.getPayload().asString();
+            if (payload.isBlank()) {
+                return markFailed(event, new IllegalStateException("Outbox payload string is empty"));
+            }
             String topic = resolveTopic(event.getEventType());
 
             return Mono.fromFuture(
@@ -50,19 +52,11 @@ public class PaymentOutboxProcessor {
         }
     }
 
-    private Object deserialize(OutboxEvent event) {
-        OutboxEventType type = event.getEventType();
-        if (OutboxEventType.PAYMENT_SUCCEEDED.equals(type)) {
-            return serializer.fromJson(event.getPayload(), PaymentSucceededEvent.class);
-        }
-        if (OutboxEventType.PAYMENT_FAILED.equals(type)) {
-            return serializer.fromJson(event.getPayload(), PaymentFailedEvent.class);
-        }
-        throw new IllegalArgumentException("Unknown event type: " + type);
-    }
-
     private String resolveTopic(OutboxEventType eventType) {
-        String eventKey = eventType != null ? eventType.toString() : "unknown";
+        String eventKey = switch (eventType) {
+            case PAYMENT_SUCCEEDED -> "payment-succeeded";
+            case PAYMENT_FAILED -> "payment-failed";
+        };
 
         String topic = kafkaProperties.getTopics().get(eventKey);
         if (topic == null || topic.isBlank()) {

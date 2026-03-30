@@ -8,7 +8,6 @@ spring:
   profiles:
     active: ${SPRING_PROFILE:dev}
 
-  # Реактивная конфигурация БД
   r2dbc:
     url: r2dbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
     username: ${POSTGRES_USER}
@@ -19,7 +18,6 @@ spring:
       max-idle-time: ${R2DBC_POOL_MAX_IDLE_TIME:30m}
       validation-query: ${R2DBC_POOL_VALIDATION_QUERY:SELECT 1}
 
-  # Конфигурация для Liquibase (через JDBC)
   liquibase:
     url: ${LIQUIBASE_URL:jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}}
     user: ${LIQUIBASE_USER:${POSTGRES_USER}}
@@ -27,7 +25,6 @@ spring:
     change-log: ${SPRING_LIQUIBASE_CHANGELOG:classpath:db/changelog/main-changelog.yaml}
     enabled: true
 
-  # Инициализация SQL для реактивного подключения
   sql:
     init:
       mode: ${SPRING_SQL_INIT_MODE:always}
@@ -62,20 +59,38 @@ logging:
 app:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9391,localhost:9392,localhost:9393}
+
     consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID:account-processing-group}
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:payment-service-group}
       max-poll-records: ${KAFKA_CONSUMER_MAX_POLL_RECORDS:10}
       session-timeout: ${KAFKA_CONSUMER_SESSION_TIMEOUT:10000}
       heartbeat-interval: ${KAFKA_CONSUMER_HEARTBEAT_INTERVAL:3000}
       max-poll-interval-ms: ${KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS:300000}
+      enable-auto-commit: ${KAFKA_CONSUMER_ENABLE_AUTO_COMMIT:false}
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET:earliest}
+
     producer:
       enable: ${KAFKA_PRODUCER_ENABLE:true}
+      retries: ${KAFKA_PRODUCER_RETRIES:3}
+      retry-backoff-ms: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS:1000}
+      idempotence: ${KAFKA_PRODUCER_IDEMPOTENCE:false}
+
     listener:
-      poll-timeout: ${KAFKA_LISTENER_POLL_TIMEOUT:1000}
+      batch-listener: ${KAFKA_BATCH_LISTENER:false}
+      poll-timeout: ${KAFKA_LISTENER_POLL_TIMEOUT:5000}
+      concurrency: ${KAFKA_CONCURRENCY:1}
+      micrometer-enabled: ${KAFKA_MICROMETER_ENABLED:true}
+
+    error:
+      retry:
+        backoff-ms: ${KAFKA_ERROR_BACKOFF_MS:1000}
+        max-attempts: ${KAFKA_ERROR_MAX_ATTEMPTS:3}
+
     topics:
       order-processing-payment: ${KAFKA_TOPIC_ORDER_PROCESSING_PAYMENT:order-processing-payment}
       order-compensated: ${KAFKA_TOPIC_ORDER_COMPENSATED:order-compensated}
       payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED:payment-succeeded}
       payment-failed: ${KAFKA_TOPIC_PAYMENT_FAILED:payment-failed}
+
   outbox:
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
