@@ -20,7 +20,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: aggregate_id
-                  type: VARCHAR(100)
+                  type: UUID
                   constraints:
                     nullable: false
               - column:
@@ -35,7 +35,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: saga_id
-                  type: VARCHAR(100)
+                  type: UUID
                   constraints:
                     nullable: true
               - column:

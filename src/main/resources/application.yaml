@@ -58,7 +58,11 @@ logging:
 # Kafka Configuration
 app:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9391,localhost:9392,localhost:9393}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9391,localhost:9392,localhost:9393}
+
+    deserializer:
+      trusted-packages: "${KAFKA_TRUSTED_PACKAGES:*}"
+      use-type-info-headers: ${KAFKA_USE_TYPE_INFO_HEADERS:false}
 
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP_ID:payment-service-group}
@@ -94,3 +98,6 @@ app:
 
   outbox:
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
+
+  payment:
+    mock-success-probability: ${PAYMENT_MOCK_SUCCESS_PROBABILITY:0.9}

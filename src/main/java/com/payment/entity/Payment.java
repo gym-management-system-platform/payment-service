@@ -2,6 +2,7 @@ package com.payment.entity;
 
 
 import com.payment.enums.Currency;
+import com.payment.enums.PaymentMethod;
 import com.payment.enums.PaymentStatus;
 import lombok.*;
 import org.springframework.data.annotation.Id;
@@ -26,10 +27,10 @@ public class Payment {
     private UUID id;
 
     @Column("saga_id")
-    private String sagaId;
+    private UUID sagaId;
 
     @Column("order_id")
-    private String orderId;
+    private UUID orderId;
 
     @Column("amount")
     private BigDecimal amount;
@@ -41,7 +42,7 @@ public class Payment {
     private PaymentStatus status;
 
     @Column("payment_method")
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
 
     @Column("transaction_id")
     private String transactionId;

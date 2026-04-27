@@ -15,12 +15,12 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: saga_id
-                  type: VARCHAR(100)
+                  type: UUID
                   constraints:
                     nullable: false
               - column:
                   name: order_id
-                  type: VARCHAR(100)
+                  type: UUID
                   constraints:
                     nullable: false
               - column:

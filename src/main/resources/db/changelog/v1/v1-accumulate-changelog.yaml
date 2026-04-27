@@ -3,4 +3,3 @@ databaseChangeLog:
       file: db/changelog/v1/001-10022026-v1-create-payments.yaml
   - include:
       file: db/changelog/v1/002-10022026-v1-create-payment-outbox-events.yaml
-

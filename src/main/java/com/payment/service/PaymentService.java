@@ -4,15 +4,17 @@ package com.payment.service;
 import com.payment.event.order.OrderProcessingPaymentEvent;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
 
 public interface PaymentService {
     /**
-     * Обработка платежа (основной сценарий Saga)
+     * Обработка платежа
      */
     Mono<Void> processPayment(OrderProcessingPaymentEvent event);
 
     /**
-     * Компенсирующая транзакция (refund)
+     * Компенсирующая транзакция
      */
-    Mono<Void> refundBySagaId(String sagaId);
+    Mono<Void> refundBySagaId(UUID sagaId);
 }

@@ -65,6 +65,7 @@ dependencies {
         exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
     }
     implementation 'io.projectreactor.kafka:reactor-kafka'
+    implementation project(':kafka-starter')
 
     // Jackson
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'

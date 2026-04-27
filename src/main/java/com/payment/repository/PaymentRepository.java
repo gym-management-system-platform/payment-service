@@ -12,7 +12,6 @@ import java.util.UUID;
 @Repository
 public interface PaymentRepository extends R2dbcRepository<Payment, UUID> {
 
-    Mono<Payment> findBySagaId(String sagaId);
+    Mono<Payment> findBySagaId(UUID sagaId);
 
-    Mono<Payment> findByOrderId(String orderId);
 }

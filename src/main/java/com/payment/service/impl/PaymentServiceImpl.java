@@ -1,21 +1,15 @@
 package com.payment.service.impl;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.payment.entity.OutboxEvent;
+import com.payment.config.property.PaymentMockProperties;
 import com.payment.entity.Payment;
 import com.payment.enums.Currency;
-import com.payment.enums.OutboxAggregateType;
-import com.payment.enums.OutboxEventType;
+import com.payment.enums.PaymentMethod;
 import com.payment.enums.PaymentStatus;
 import com.payment.event.order.OrderProcessingPaymentEvent;
-import com.payment.event.payment.PaymentFailedEvent;
-import com.payment.event.payment.PaymentSucceededEvent;
-import com.payment.repository.OutboxRepository;
 import com.payment.repository.PaymentRepository;
+import com.payment.service.PaymentOutboxService;
 import com.payment.service.PaymentService;
-import io.r2dbc.postgresql.codec.Json;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +18,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 @Service
@@ -32,17 +27,17 @@ import java.util.UUID;
 public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final OutboxRepository outboxRepository;
-    private final ObjectMapper objectMapper;
+    private final PaymentOutboxService paymentOutboxService;
+    private final PaymentMockProperties paymentMockProperties;
     private final TransactionalOperator transactionalOperator;
 
     @Override
     public Mono<Void> processPayment(OrderProcessingPaymentEvent event) {
-        String sagaId = event.getSagaId();
 
-        return paymentRepository.findBySagaId(sagaId)
+
+        return paymentRepository.findBySagaId(event.getSagaId())
                 .flatMap(existingPayment -> {
-                    log.warn("Payment already exists for sagaId: {}", sagaId);
+                    log.warn("Платёж уже существует для sagaId={}", event.getSagaId());
                     return Mono.<Void>empty();
                 })
                 .switchIfEmpty(
@@ -55,15 +50,17 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private Mono<Payment> createPayment(OrderProcessingPaymentEvent event) {
+        Instant now = Instant.now();
+
         Payment payment = Payment.builder()
-                .id(UUID.randomUUID())
                 .sagaId(event.getSagaId())
                 .orderId(event.getOrderId())
                 .amount(event.getAmount())
                 .currency(event.getCurrency() != null ? event.getCurrency() : Currency.RUB)
                 .status(PaymentStatus.PENDING)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
+                .paymentMethod(PaymentMethod.SBERBANK) //todo: перенести потом в заказ
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
 
         return paymentRepository.save(payment);
@@ -72,15 +69,15 @@ public class PaymentServiceImpl implements PaymentService {
     private Mono<Payment> processPaymentTransaction(Payment payment) {
         // Имитация обработки платежа
         return Mono.fromCallable(() -> {
-            // 90% успешных платежей для демонстрации
-            boolean success = Math.random() < 0.9;
+            double p = paymentMockProperties.getMockSuccessProbability();
+            boolean success = ThreadLocalRandom.current().nextDouble() < p;
             if (success) {
                 payment.setStatus(PaymentStatus.SUCCEEDED);
                 payment.setTransactionId("TXN-" + UUID.randomUUID());
                 payment.setUpdatedAt(Instant.now());
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
-                payment.setErrorMessage("Payment gateway error: insufficient funds");
+                payment.setErrorMessage("Ошибка платёжного шлюза: недостаточно средств");
                 payment.setUpdatedAt(Instant.now());
             }
 
@@ -90,68 +87,21 @@ public class PaymentServiceImpl implements PaymentService {
 
     private Mono<Void> publishPaymentResult(Payment payment) {
         if (PaymentStatus.SUCCEEDED.equals(payment.getStatus())) {
-            return publishPaymentSucceeded(payment);
+            return paymentOutboxService.enqueuePaymentSucceeded(payment);
         } else {
-            return publishPaymentFailed(payment);
+            return paymentOutboxService.enqueuePaymentFailed(payment);
         }
-    }
-
-    private Mono<Void> publishPaymentSucceeded(Payment payment) {
-        PaymentSucceededEvent event = PaymentSucceededEvent.builder()
-                .sagaId(payment.getSagaId())
-                .orderId(payment.getOrderId())
-                .paymentId(payment.getId().toString())
-                .createdAt(Instant.now())
-                .build();
-
-
-        OutboxEvent outbox = OutboxEvent.builder()
-                .id(UUID.randomUUID())
-                .aggregateType(OutboxAggregateType.PAYMENT)
-                .aggregateId(payment.getId().toString())
-                .eventType(OutboxEventType.PAYMENT_SUCCEEDED)
-                .payload(toOutboxPayload(event))
-                .sagaId(payment.getSagaId())
-                .createdAt(Instant.now())
-                .processed(false)
-                .retryCount(0)
-                .build();
-
-        return outboxRepository.save(outbox).then();
-    }
-
-    private Mono<Void> publishPaymentFailed(Payment payment) {
-        PaymentFailedEvent event = PaymentFailedEvent.builder()
-                .sagaId(payment.getSagaId())
-                .orderId(payment.getOrderId())
-                .reason(payment.getErrorMessage())
-                .createdAt(Instant.now())
-                .build();
-
-        OutboxEvent outbox = OutboxEvent.builder()
-                .id(UUID.randomUUID())
-                .aggregateType(OutboxAggregateType.PAYMENT)
-                .aggregateId(payment.getId().toString())
-                .eventType(OutboxEventType.PAYMENT_FAILED)
-                .payload(toOutboxPayload(event))
-                .sagaId(payment.getSagaId())
-                .createdAt(Instant.now())
-                .processed(false)
-                .retryCount(0)
-                .build();
-
-        return outboxRepository.save(outbox).then();
     }
 
     /**
      * Компенсирующая транзакция - возврат средств (refund)
      */
     @Override
-    public Mono<Void> refundBySagaId(String sagaId) {
+    public Mono<Void> refundBySagaId(UUID sagaId) {
         return paymentRepository.findBySagaId(sagaId)
                 .flatMap(payment -> {
                     if (!PaymentStatus.SUCCEEDED.equals(payment.getStatus())) {
-                        log.warn("Cannot refund payment with status: {} for sagaId: {}", payment.getStatus(), sagaId);
+                        log.warn("Возврат невозможен: статус платежа {} для sagaId={}", payment.getStatus(), sagaId);
                         return Mono.empty();
                     }
 
@@ -161,13 +111,5 @@ public class PaymentServiceImpl implements PaymentService {
                 })
                 .then()
                 .as(transactionalOperator::transactional);
-    }
-
-    private Json toOutboxPayload(Object event) {
-        try {
-            return Json.of(objectMapper.writeValueAsString(event));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize event for outbox", e);
-        }
     }
 }
