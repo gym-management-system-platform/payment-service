@@ -16,9 +16,11 @@ public class OrderCompensatedForPaymentKafkaListener {
     private final PaymentOrderKafkaApplicationService paymentOrderKafka;
 
     @KafkaListener(
-            topics = "${app.kafka.topics.order-compensated:order-compensated}",
-            groupId = "payment-service-group",
-            containerFactory = "orderCompensatedKafkaListenerContainerFactory"
+            topics = "${app.kafka.listener.order-compensated.topic}",
+            groupId = "${app.kafka.listener.order-compensated.group-id}",
+            containerFactory = "${app.kafka.listener.order-compensated.container-factory}",
+            batch = "${app.kafka.listener.order-compensated.batch-mode}",
+            concurrency = "${app.kafka.listener.order-compensated.concurrency}"
     )
     public void handle(OrderCompensatedEvent event, Acknowledgment ack) {
         if (event == null) {

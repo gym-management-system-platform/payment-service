@@ -55,17 +55,16 @@ logging:
     org.springframework.kafka: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA:OFF}
     reactor.kafka: ${LOGGING_LEVEL_REACTOR_KAFKA:OFF}
 
-# Kafka Configuration
 app:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9391,localhost:9392,localhost:9393}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
 
     deserializer:
       trusted-packages: "${KAFKA_TRUSTED_PACKAGES:*}"
       use-type-info-headers: ${KAFKA_USE_TYPE_INFO_HEADERS:false}
 
     consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID:payment-service-group}
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
       max-poll-records: ${KAFKA_CONSUMER_MAX_POLL_RECORDS:10}
       session-timeout: ${KAFKA_CONSUMER_SESSION_TIMEOUT:10000}
       heartbeat-interval: ${KAFKA_CONSUMER_HEARTBEAT_INTERVAL:3000}
@@ -85,19 +84,44 @@ app:
       concurrency: ${KAFKA_CONCURRENCY:1}
       micrometer-enabled: ${KAFKA_MICROMETER_ENABLED:true}
 
+      payment:
+        topic: ${KAFKA_LISTENER_PAYMENT_TOPIC:${KAFKA_TOPIC_ORDER_PROCESSING_PAYMENT}}
+        group-id: ${KAFKA_LISTENER_PAYMENT_GROUP_ID:${KAFKA_CONSUMER_GROUP_ID}}
+        batch-mode: ${KAFKA_LISTENER_PAYMENT_BATCH_MODE:false}
+        concurrency: ${KAFKA_LISTENER_PAYMENT_CONCURRENCY:1}
+        container-factory: ${KAFKA_LISTENER_PAYMENT_CONTAINER_FACTORY:orderProcessingPaymentKafkaListenerContainerFactory}
+        retry:
+          attempts: ${PAYMENT_RETRY_ATTEMPTS:4}
+          delay-ms: ${PAYMENT_RETRY_DELAY_MS:2000}
+          multiplier: ${PAYMENT_RETRY_MULTIPLIER:2.0}
+          max-delay-ms: ${PAYMENT_RETRY_MAX_DELAY_MS:16000}
+          num-partitions: ${PAYMENT_RETRY_NUM_PARTITIONS:3}
+          auto-create-topics: ${PAYMENT_RETRY_AUTO_CREATE_TOPICS:true}
+
+      order-compensated:
+        topic: ${KAFKA_LISTENER_ORDER_COMPENSATED_TOPIC:${KAFKA_TOPIC_ORDER_COMPENSATED}}
+        group-id: ${KAFKA_LISTENER_ORDER_COMPENSATED_GROUP_ID:${KAFKA_CONSUMER_GROUP_ID}}
+        batch-mode: ${KAFKA_LISTENER_ORDER_COMPENSATED_BATCH_MODE:false}
+        concurrency: ${KAFKA_LISTENER_ORDER_COMPENSATED_CONCURRENCY:1}
+        container-factory: ${KAFKA_LISTENER_ORDER_COMPENSATED_CONTAINER_FACTORY:orderCompensatedKafkaListenerContainerFactory}
+
     error:
       retry:
         backoff-ms: ${KAFKA_ERROR_BACKOFF_MS:1000}
         max-attempts: ${KAFKA_ERROR_MAX_ATTEMPTS:3}
 
     topics:
-      order-processing-payment: ${KAFKA_TOPIC_ORDER_PROCESSING_PAYMENT:order-processing-payment}
-      order-compensated: ${KAFKA_TOPIC_ORDER_COMPENSATED:order-compensated}
-      payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED:payment-succeeded}
-      payment-failed: ${KAFKA_TOPIC_PAYMENT_FAILED:payment-failed}
+      order-processing-payment: ${KAFKA_TOPIC_ORDER_PROCESSING_PAYMENT}
+      order-compensated: ${KAFKA_TOPIC_ORDER_COMPENSATED}
+      payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED}
+      payment-failed: ${KAFKA_TOPIC_PAYMENT_FAILED}
 
   outbox:
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
 
   payment:
     mock-success-probability: ${PAYMENT_MOCK_SUCCESS_PROBABILITY:0.9}
+    failure-simulator:
+      enabled: ${PAYMENT_FAILURE_SIMULATOR_ENABLED:false}
+      transient-probability: ${PAYMENT_FAILURE_TRANSIENT_PROBABILITY:0.5}
+      poison-amount-threshold: ${PAYMENT_FAILURE_POISON_AMOUNT_THRESHOLD:1000000}

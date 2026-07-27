@@ -2,8 +2,10 @@ package com.payment;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.kafka.annotation.EnableKafkaRetryTopic;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableKafkaRetryTopic
 @EnableScheduling
 @SpringBootApplication
 public class PaymentServiceApplication {

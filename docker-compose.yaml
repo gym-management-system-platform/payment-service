@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres-payment:
     image: postgres:15
@@ -14,7 +12,11 @@ services:
       - payment_data:/var/lib/postgresql/data
 
   payment-service:
-    build: .
+    build:
+      context: ..
+      dockerfile: payment-service/Dockerfile
+      additional_contexts:
+        m2: ${HOME}/.m2
     container_name: payment-service
     depends_on:
       - postgres-payment
@@ -24,8 +26,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: payment_service_password
     ports:
       - "8083:8080"
-    volumes:
-      - ~/.m2:/home/gradle/.m2:ro
 
 volumes:
   payment_data:

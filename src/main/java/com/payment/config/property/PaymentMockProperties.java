@@ -1,9 +1,12 @@
 package com.payment.config.property;
 
+
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.stereotype.Component;
+
 
 /**
  * Параметры имитации платежного шлюза.
@@ -18,4 +21,18 @@ public class PaymentMockProperties {
      * Вероятность успешного платежа в диапазоне [0.0, 1.0].
      */
     private double mockSuccessProbability;
+
+    /**
+     * Симуляция ошибок при оплате для ретрая кафки
+     */
+    @NestedConfigurationProperty
+    private FailureSimulator failureSimulator = new FailureSimulator();
+
+    @Getter
+    @Setter
+    public static class FailureSimulator {
+        private boolean enabled = false;
+        private double transientProbability = 0.5;
+        private long poisonAmountThreshold = 1_000_000L;
+    }
 }
